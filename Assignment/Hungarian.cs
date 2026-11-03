@@ -19,6 +19,24 @@ public static class Hungarian
         if (rows == 0 || columns == 0)
             return [];
 
+        // One observation cannot compete with another row. Preserve the square solver's
+        // first-column tie rule without allocating/solving dummy track-by-track rows.
+        if (rows == 1)
+        {
+            int best = -1;
+            double least = double.PositiveInfinity;
+            for (int column = 0; column < columns; column++)
+            {
+                double value = cost[column];
+                if (double.IsFinite(value) && value < least)
+                {
+                    best = column;
+                    least = value;
+                }
+            }
+            return best < 0 ? [] : new[] { new Assignment(0, best) };
+        }
+
         double minimum = 0, maximum = 0;
         var anyFinite = false;
         for (var i = 0; i < cost.Length; i++)
