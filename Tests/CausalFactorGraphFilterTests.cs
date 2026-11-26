@@ -78,6 +78,40 @@ public class CausalFactorGraphFilterTests
         AssertBeliefClose(kalman, fg.CurrentMarginal(), EquivalenceEpsilon);
     }
 
+    [Theory]
+    [InlineData(0.1)]
+    [InlineData(0.001)]
+    public void Small_dt_cv_birth_style_prior_matches_kalman_within_epsilon(double dt)
+    {
+        // Baseline kinematic birth: position σ²=225, velocity σ²=900; ProcessNoise density=4.
+        var prior = KalmanState.Create(
+            [0, 0, 0, 0, 0, 0],
+            Matrix.Diagonal(225, 225, 225, 900, 900, 900));
+        var F = ConstantVelocity.Transition(dt, 3);
+        var Q = ConstantVelocity.ProcessNoise(dt, noiseDensity: 4.0, 3);
+        var H = Matrix.RowMajor(3, 6, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0);
+        var R = Matrix.Diagonal(225, 225, 225);
+        double[] z = [1.5, -0.25, 12.0];
+
+        var kalman = KalmanFilter.Update(KalmanFilter.Predict(prior, F, Q), z, H, R).State;
+        var fg = CausalFactorGraphFilter.FromPrior(prior);
+        fg.ApplyTransitionFactor(F, Q);
+        fg.ApplyMeasurementFactor(z, H, R);
+        AssertBeliefClose(kalman, fg.CurrentMarginal(), EquivalenceEpsilon);
+    }
+
+    [Fact]
+    public void Zero_process_noise_deterministic_transition_matches_kalman()
+    {
+        var prior = KalmanState.Create([1, 2, 3, 4, 5, 6], Matrix.Diagonal(225, 225, 225, 900, 900, 900));
+        var F = ConstantVelocity.Transition(0.5, 3);
+        var Q = ConstantVelocity.ProcessNoise(0.5, noiseDensity: 0, 3);
+        var kalman = KalmanFilter.Predict(prior, F, Q);
+        var fg = CausalFactorGraphFilter.FromPrior(prior);
+        fg.ApplyTransitionFactor(F, Q);
+        AssertBeliefClose(kalman, fg.CurrentMarginal(), EquivalenceEpsilon);
+    }
+
     private static void AssertBeliefClose(KalmanState expected, KalmanState actual, double epsilon)
     {
         Assert.Equal(expected.Size, actual.Size);

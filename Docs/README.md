@@ -53,7 +53,7 @@ Enable it in `workspace.yaml` under `modules:` (`name: Ape.Module.Maths`, this G
 
 `CausalFactorGraphFilter` is a forward-only linear-Gaussian factor-graph filter. It keeps a unary belief factor and applies binary transition factors and unary measurement factors. The returned `CurrentMarginal` is the filtered mean and covariance at the current time given the causal measurement prefix. Full-batch re-estimation of past states (smoothing) is out of scope.
 
-For linear-Gaussian models this matches `KalmanFilter` within a documented absolute tolerance (`1e-9` in the Slice 1 tests).
+Transition elimination uses the covariance-form Schur complement (`P′ = F P Fᵀ + Q`), which stays well-defined for `Q = 0` and for small `dt` where an information-form `Q⁻¹` path would be unstable. For linear-Gaussian models this matches `KalmanFilter` within a documented absolute tolerance (`1e-9` in the Slice 1 tests).
 
 ## Constant velocity
 

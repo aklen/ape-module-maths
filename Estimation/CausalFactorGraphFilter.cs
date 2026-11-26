@@ -35,6 +35,10 @@ public sealed class CausalFactorGraphFilter
     /// <summary>
     /// Apply a binary transition factor xₖ₊₁ = F xₖ + w, w ~ N(0, Q), and eliminate xₖ
     /// so only the causal marginal on xₖ₊₁ remains.
+    /// Elimination uses the covariance-form Schur complement
+    /// (P′ = F P Fᵀ + Q, μ′ = F μ), which is algebraically equivalent to the information-form
+    /// Schur when Q is SPD and remains well-defined for Q = 0 (deterministic transition) and
+    /// for small dt where Q⁻¹ would otherwise blow up.
     /// </summary>
     public void ApplyTransitionFactor(Matrix transition, Matrix processNoise)
     {
@@ -43,22 +47,15 @@ public sealed class CausalFactorGraphFilter
         RequireSquare(transition, Size, nameof(transition));
         RequireSquare(processNoise, Size, nameof(processNoise));
 
-        // Joint precision on [x; x'] for x' = F x + w:
-        //   [ Fᵀ Q⁻¹ F ,  -Fᵀ Q⁻¹ ]
-        //   [ -Q⁻¹ F   ,   Q⁻¹    ]
-        // plus the unary belief on x in the top-left block; then Schur-eliminate x.
-        var qInv = Invert(processNoise);
-        var ftQi = transition.Transpose().Multiply(qInv);
-        // Top-left joint block on x: Λ + Fᵀ Q⁻¹ F. Schur-eliminate x for the x' marginal.
-        var topLeft = ftQi.Multiply(transition).Add(_precision).Symmetrize();
-        var topLeftInv = Invert(topLeft);
-        var fThrough = transition.Multiply(topLeftInv).Multiply(transition.Transpose());
-        var precision = qInv.Subtract(qInv.Multiply(fThrough).Multiply(qInv)).Symmetrize();
-        var solved = topLeftInv.Multiply(_information);
-        var information = qInv.Multiply(transition.Multiply(solved));
-
-        _precision = precision;
-        _information = information;
+        var belief = CurrentMarginal();
+        var mean = transition.Multiply(belief.MeanSpan);
+        var covariance = transition
+            .Multiply(belief.Covariance)
+            .Multiply(transition.Transpose())
+            .Add(processNoise)
+            .Symmetrize();
+        _precision = Invert(covariance);
+        _information = _precision.Multiply(mean);
     }
 
     /// <summary>Apply a unary linear measurement factor z = H x + v, v ~ N(0, R).</summary>
