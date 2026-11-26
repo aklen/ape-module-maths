@@ -49,6 +49,12 @@ Enable it in `workspace.yaml` under `modules:` (`name: Ape.Module.Maths`, this G
 
 `Hungarian.Minimize(cost, rows, columns)` assigns rows to columns at minimum cost. The cost array is row-major. A non-finite entry is an absent pair and stays unmatched. The solver uses as many finite pairs as it can, and among those matchings it minimizes the sum. Rows and columns may differ in count. The result lists the matched pairs, ordered by row.
 
+## Causal factor-graph filter
+
+`CausalFactorGraphFilter` is a forward-only linear-Gaussian factor-graph filter. It keeps a unary belief factor and applies binary transition factors and unary measurement factors. The returned `CurrentMarginal` is the filtered mean and covariance at the current time given the causal measurement prefix. Full-batch re-estimation of past states (smoothing) is out of scope.
+
+For linear-Gaussian models this matches `KalmanFilter` within a documented absolute tolerance (`1e-9` in the Slice 1 tests).
+
 ## Constant velocity
 
 `ConstantVelocity` builds the transition and the process-noise matrix for independent axes. The state is positions, then velocities: index `i` is the position of axis `i`, and index `axes + i` is its velocity.
